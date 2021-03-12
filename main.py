@@ -195,6 +195,6 @@ class ReflexAgent(Agent):
 
 
 if __name__ == '__main__':
-    agents = [ReflexAgent() for i in range(100)]
+    agents = [ReflexAgent() for i in range(3)]
     simulator = Simulator(Environment(left_agents=agents), agents)
     simulator.run()
