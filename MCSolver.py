@@ -113,6 +113,6 @@ class MCSolver:
 
 if __name__ == '__main__':
     solver = MCSolver()
-    solution = solver.solve(6, 4, 2, True)
+    solution = solver.solve(3, 3, 2, True)
     print(solution)
 
