@@ -7,6 +7,12 @@ class State:
         self.missionaries = missionaries
         self.cannibals = cannibals
 
+    def move(self, dm, dc):
+        return State(self.missionaries + dm, self.cannibals + dc)
+
+    def __eq__(self, other):
+        return self.missionaries == other.missionaries and self.cannibals == other.cannibals
+
 
 class Node:
     def __init__(self, state, action=None, parent=None):
@@ -19,21 +25,11 @@ class Node:
 
 
 class MCSolver:
-    def __init__(self):
-        self.__frontier = Queue()
-        self.__explored = []
-        self.__missionaries = 0
-        self.__cannibals = 0
-        self.__capacity = 0
-        self.__candidates = []
-
     def __actions(self, state):
         valid_actions = []
 
-        for dm, dc in self.__candidates:
-            if 0 <= state.cannibals + dc <= state.missionaries + dm <= self.__missionaries and \
-                    state.cannibals + dc <= self.__cannibals and \
-                    state.missionaries + dm - state.cannibals - dc <= self.__missionaries - self.__cannibals:
+        for dm, dc in [(-2, 0), (-1, -1), (0, -2), (-1, 0), (0, -1), (2, 0), (1, 1), (0, 2), (1, 0), (0, 1)]:
+            if 0 <= state.cannibals + dc == state.missionaries + dm <= 3:
                 valid_actions.append((dm, dc))
 
         return valid_actions
@@ -44,75 +40,79 @@ class MCSolver:
     def __solution(self, node):
         return [] if node.parent is None else self.__solution(node.parent) + [node.action]
 
-    def solve(self, missionaries, cannibals, capacity, verbose=False):
-        self.__frontier.queue.clear()
-        self.__missionaries = missionaries
-        self.__cannibals = cannibals
-        self.__capacity = capacity
-        self.__candidates.clear()
-
-        for i in range(capacity):
-            self.__candidates += [(j, i - j + 1) for j in range(i + 2)] + [(-j, j - i - 1) for j in range(i + 2)]
+    def solve(self, verbose=False):
+        frontier = Queue()
+        explored = []
+        visited_node = queue_size = 0
 
         if verbose:
-            node_counter = 1
             start = default_timer()
 
             print('### MISSIONARY & CANNIBAL PROBLEM SOLVER ###')
-            print('[PROBLEM DESCRIPTION]')
-            print(f'  @missionaries : {self.__missionaries}')
-            print(f'  @cannibals    : {self.__cannibals}')
-            print(f'  @boat capacity: {self.__capacity}')
-            print()
 
-        node = Node(State(self.__missionaries, self.__cannibals))
+        node = Node(State(3, 3))
+        visited_node += 1
 
         if self.__goal_test(node.state):
+            solution = self.__solution(node)
+
             if verbose:
-                print('[TERMINATE SEARCH]')
-                print('  @cause     : Solution is found.')
-                print(f'  @# of nodes: {node_counter}')
-                print(f'  @elapsed   : {round((default_timer() - start) * 1000, 4)}ms')
+                print('[SEARCH FINISHED]')
+                print('  @cause        : Solution is found.')
+                print(f'  @visited nodes: {visited_node}')
+                print(f'  @memory use   : {queue_size + len(explored)}')
+                print(f'  @elapsed      : {round((default_timer() - start) * 1000, 4)}ms')
+                print()
+                print('[SOLUTION]')
+                print(f'  @move 1: {solution[0]}')
 
-            return self.__solution(node)
+            return solution
 
-        self.__frontier.put(node)
+        frontier.put(node)
+        queue_size = max(queue_size, frontier.qsize())
 
         while True:
-            if self.__frontier.empty():
+            if frontier.empty():
                 if verbose:
-                    print('[TERMINATE SEARCH]')
-                    print('  @cause     : Failed to find solution.')
-                    print(f'  @# of nodes: {node_counter}')
-                    print(f'  @elapsed   : {round((default_timer() - start) * 1000, 4)}ms')
+                    print('[SEARCH FINISHED]')
+                    print('  @cause        : Failed to find solution.')
+                    print(f'  @visited nodes: {visited_node}')
+                    print(f'  @memory use   : {queue_size + len(explored)}')
+                    print(f'  @elapsed      : {round((default_timer() - start) * 1000, 4)}ms')
 
                 return None
 
-            node = self.__frontier.get()
+            node = frontier.get()
+            queue_size = max(queue_size, frontier.qsize())
 
             if self.__goal_test(node.state):
+                solution = self.__solution(node)
+
                 if verbose:
-                    print('[TERMINATE SEARCH]')
-                    print('  @cause     : Solution is found.')
-                    print(f'  @# of nodes: {node_counter}')
-                    print(f'  @elapsed   : {round((default_timer() - start) * 1000, 4)}ms')
+                    print('[SEARCH FINISHED]')
+                    print('  @cause        : Solution is found.')
+                    print(f'  @visited nodes: {visited_node}')
+                    print(f'  @memory use   : {queue_size + len(explored)}')
+                    print(f'  @elapsed      : {round((default_timer() - start) * 1000, 4)}ms')
+                    print()
+                    print('[SOLUTION]')
 
-                return self.__solution(node)
+                    for i in range(len(solution)):
+                        print(f'  @move {i + 1}: {solution[i]}')
 
-            self.__explored.append(node)
+                return solution
+
+            explored.append(node)
 
             for dm, dc in self.__actions(node.state):
-                if verbose:
-                    node_counter += 1
+                child = Node(node.state.move(dm, dc), (dm, dc), node)
+                visited_node += 1
 
-                child = Node(State(node.state.missionaries + dm, node.state.cannibals + dc), (dm, dc), node)
-
-                if child not in self.__explored:
-                    self.__frontier.put(child)
+                if child not in explored:
+                    frontier.put(child)
+                    queue_size = max(queue_size, frontier.qsize())
 
 
 if __name__ == '__main__':
     solver = MCSolver()
-    solution = solver.solve(3, 3, 2, True)
-    print(solution)
-
+    solution = solver.solve(True)
